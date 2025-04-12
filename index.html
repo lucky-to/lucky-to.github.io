@@ -172,10 +172,13 @@
         </div>
     </div>
 
-    <!-- 1. 首先加载数据文件 -->
+    <!-- 1. 首先加载ECharts -->
+    <script src="echarts.min.js"></script>
+
+    <!-- 2. 然后加载数据文件 -->
     <script src="index.js"></script>
 
-    <!-- 2. 然后加载和初始化ECharts -->
+    <!-- 3. 初始化图表 -->
     <script>
         // 检查index.js是否正确加载
         if (typeof list === 'undefined') {
@@ -185,37 +188,7 @@
             document.getElementById('loading-message').style.display = 'none';
         } else {
             console.log('数据加载成功:', list);
-
-            // 定义多个CDN链接
-            const CDN_URLS = [
-                'https://cdn.bootcdn.net/ajax/libs/echarts/5.4.3/echarts.min.js',
-                'https://cdnjs.cloudflare.com/ajax/libs/echarts/5.4.3/echarts.min.js',
-                'https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js'
-            ];
-
-            // 尝试加载ECharts的函数
-            function loadECharts(index = 0) {
-                if (index >= CDN_URLS.length) {
-                    document.getElementById('error-message').style.display = 'block';
-                    document.getElementById('loading-message').style.display = 'none';
-                    return;
-                }
-
-                const script = document.createElement('script');
-                script.src = CDN_URLS[index];
-                script.onload = function () {
-                    console.log('ECharts 加载成功: ' + CDN_URLS[index]);
-                    initChart();
-                };
-                script.onerror = function () {
-                    console.error('ECharts 加载失败: ' + CDN_URLS[index]);
-                    loadECharts(index + 1);
-                };
-                document.head.appendChild(script);
-            }
-
-            // 开始加载ECharts
-            loadECharts();
+            initChart();
         }
 
         // 初始化图表的函数
