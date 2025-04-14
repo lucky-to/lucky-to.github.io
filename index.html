@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数据分析雷达图</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #333;
+            color: #fff;
+            font-family: Arial, sans-serif;
+        }
+
+        .chart-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            /* padding: 20px; */
+        }
+
+        .header-row {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            width: 100%;
+            margin: 20px 0;
+            justify-content: center;
+        }
+
+        .header-row h2 {
+            margin: 0;
+            font-size: 24px;
+        }
+
+        .selector {
+            margin: 0;
+        }
+
+        select {
+            padding: 8px 16px;
+            background-color: #444;
+            color: #fff;
+            border: 1px solid #666;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        select:hover {
+            background-color: #555;
+        }
+
+        .charts-row {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 20px;
+            width: 100%;
+        }
+
+        .chart-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .radar-chart {
+            width: 600px;
+            height: 650px;
+        }
+
+        #loading-message,
+        #error-message {
+            padding: 20px;
+            text-align: center;
+            font-size: 16px;
+            background-color: #444;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+
+        #error-message {
+            display: none;
+            color: #ff5252;
+        }
+
+        .local-echarts-option {
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        .player-container {
+            display: flex;
+            justify-content: space-between;
+            width: 800px;
+            margin-bottom: 20px;
+        }
+
+        .player-info {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 300px;
+        }
+
+        .player-name {
+            font-size: 30px;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+
+        .player-stats {
+            font-size: 20px;
+            opacity: 0.8;
+        }
+
+        .left-player {
+            text-align: left;
+            color: #36a3ff;
+        }
+
+        .right-player {
+            text-align: right;
+            color: #ff5252;
+        }
+
+        .vs-icon {
+            width: 60px;
+            height: 60px;
+            background-color: #666;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+            font-weight: bold;
+            margin-top: 30px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="chart-container">
+        <div class="header-row">
+            <h2>对局数据分析</h2>
+            <div class="selector">
+                <select id="gameSelect">
+                    <!-- 选项将通过JavaScript动态填充 -->
+                </select>
+            </div>
+        </div>
+
+        <div class="charts-row" id="chartsContainer">
+            <!-- 雷达图将通过JavaScript动态填充 -->
+        </div>
+
+        <div id="loading-message">加载中，请稍候...</div>
+        <div id="error-message">
+            加载失败，可能是网络问题或数据格式错误。
+            <div class="local-echarts-option">
+                <p>请确保:</p>
+                <ol style="text-align: left;">
+                    <li>index.js文件存在于同一目录</li>
+                    <li>index.js中含有正确格式的list数组</li>
+                    <li>网络连接正常以加载ECharts库</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+
+    <!-- 1. 首先加载ECharts -->
+    <script src="echarts.min.js"></script>
+
+    <!-- 2. 然后加载数据文件 -->
+    <script src="index.js"></script>
+
+    <!-- 3. 初始化图表 -->
+    <script>
+        // 检查index.js是否正确加载
+        if (typeof list === 'undefined') {
+            console.error('index.js中的list变量未定义');
+            document.getElementById('error-message').textContent = 'index.js中的list变量未定义，请检查数据文件格式';
+            document.getElementById('error-message').style.display = 'block';
+            document.getElementById('loading-message').style.display = 'none';
+        } else {
+            console.log('数据加载成功:', list);
+            initChart();
+        }
+
+        // 初始化图表的函数
+        function initChart() {
+            try {
+                // 填充游戏选择器
+                const gameSelect = document.getElementById('gameSelect');
+                gameSelect.innerHTML = ''; // 清空现有选项
+
+                list.forEach((game, index) => {
+                    const option = document.createElement('option');
+                    option.value = index;
+                    option.textContent = game.num;
+                    gameSelect.appendChild(option);
+                });
+
+                // 初始渲染第一场游戏数据
+                renderRadarChart(0);
+
+                // 切换游戏数据的事件监听器
+                gameSelect.addEventListener('change', function () {
+                    renderRadarChart(parseInt(this.value));
+                });
+
+                // 隐藏加载信息
+                document.getElementById('loading-message').style.display = 'none';
+            } catch (error) {
+                console.error('初始化图表错误:', error);
+                document.getElementById('error-message').textContent = '数据处理错误: ' + error.message;
+                document.getElementById('error-message').style.display = 'block';
+                document.getElementById('loading-message').style.display = 'none';
+            }
+
+            // 渲染雷达图函数
+            function renderRadarChart(gameIndex) {
+                const gameData = list[gameIndex].arr;
+                const chartsContainer = document.getElementById('chartsContainer');
+                chartsContainer.innerHTML = ''; // 清空现有图表
+
+                // 为每组对比数据创建一个图表
+                gameData.forEach((matchup, index) => {
+                    const players = Object.keys(matchup);
+                    if (players.length < 2) {
+                        console.error(`第${index + 1}组数据需要至少两名玩家数据进行对比`);
+                        return;
+                    }
+
+                    // 创建图表容器
+                    const chartWrapper = document.createElement('div');
+                    chartWrapper.className = 'chart-wrapper';
+
+                    // 创建玩家信息容器
+                    const playerInfoContainer = document.createElement('div');
+                    playerInfoContainer.className = 'player-container';
+                    playerInfoContainer.style.width = '600px';
+
+                    // 创建雷达图容器
+                    const chartDom = document.createElement('div');
+                    chartDom.className = 'radar-chart';
+                    chartDom.id = `radarChart${index}`;
+
+                    // 添加到wrapper
+                    chartWrapper.appendChild(playerInfoContainer);
+                    chartWrapper.appendChild(chartDom);
+                    chartsContainer.appendChild(chartWrapper);
+
+                    // 获取玩家数据，并确保抹茶总是作为第一个玩家（蓝色方）
+                    let player1, player2, player1Data, player2Data;
+                    
+                    if (players.includes("抹茶")) {
+                        player1 = "抹茶";
+                        player2 = players.find(p => p !== "抹茶");
+                    } else {
+                        player1 = players[0];
+                        player2 = players[1];
+                    }
+                    
+                    player1Data = matchup[player1];
+                    player2Data = matchup[player2];
+
+                    // 更新玩家信息
+                    updatePlayerInfo(player1, player2, player1Data, player2Data, playerInfoContainer);
+
+                    // 初始化图表
+                    const myChart = echarts.init(chartDom);
+
+                    // 准备雷达图数据和配置
+                    // 动态生成指标列表
+                    const baseIndicators = [
+                        { name: '伤害占比' },
+                        { name: '伤害' },
+                        { name: '死亡' },
+                        { name: '参团率' },
+                        { name: '参与击杀' },
+                        { name: '助攻' },
+                        { name: '经济' }
+                    ];
+
+                    // 根据数据动态添加伤转或每死承伤指标
+                    if (player1Data['伤转'] || player2Data['伤转']) {
+                        baseIndicators.push({ name: '伤转' });
+                    }
+                    if (player1Data['每死承伤'] || player2Data['每死承伤']) {
+                        baseIndicators.push({ name: '每死承伤' });
+                    }
+
+                    const indicators = baseIndicators;
+
+                    // 动态生成数据值数组
+                    const getPlayerValues = (playerData) => {
+                        const values = [
+                            parseFloat(playerData['伤害占比'].replace('%', '')),
+                            parseInt(playerData['伤害']),
+                            parseInt(playerData['死亡']),
+                            parseFloat(playerData['参团率'].replace('%', '')),
+                            parseInt(playerData['参与击杀']),
+                            parseInt(playerData['助攻']),
+                            parseInt(playerData['经济'])
+                        ];
+
+                        if (player1Data['伤转'] || player2Data['伤转']) {
+                            values.push(playerData['伤转'] ? parseFloat(playerData['伤转'].replace('%', '')) : 0);
+                        }
+                        if (player1Data['每死承伤'] || player2Data['每死承伤']) {
+                            values.push(playerData['每死承伤'] ? parseInt(playerData['每死承伤']) : 0);
+                        }
+
+                        return values;
+                    };
+
+                    const seriesData = [
+                        {
+                            value: getPlayerValues(player1Data),
+                            name: player1,
+                            itemStyle: {
+                                color: '#36a3ff'
+                            },
+                            areaStyle: {
+                                color: {
+                                    type: 'linear',
+                                    x: 0,
+                                    y: 0,
+                                    x2: 0,
+                                    y2: 1,
+                                    colorStops: [
+                                        { offset: 0, color: 'rgba(54, 163, 255, 0.6)' },
+                                        { offset: 1, color: 'rgba(54, 163, 255, 0.1)' }
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            value: getPlayerValues(player2Data),
+                            name: player2,
+                            itemStyle: {
+                                color: '#ff5252'
+                            },
+                            areaStyle: {
+                                color: {
+                                    type: 'linear',
+                                    x: 0,
+                                    y: 0,
+                                    x2: 0,
+                                    y2: 1,
+                                    colorStops: [
+                                        { offset: 0, color: 'rgba(255, 82, 82, 0.6)' },
+                                        { offset: 1, color: 'rgba(255, 82, 82, 0.1)' }
+                                    ]
+                                }
+                            }
+                        }
+                    ];
+
+                    const option = {
+                        backgroundColor: '#333',
+                        color: ['#36a3ff', '#ff5252'],
+                        title: {
+                            show: false
+                        },
+                        legend: {
+                            show: false
+                        },
+                        radar: {
+                            indicator: indicators,
+                            shape: 'polygon',
+                            splitNumber: 5,
+                            axisName: {
+                                color: '#fff',
+                                fontSize: 14,
+                                padding: [0, 15],
+                                rich: {
+                                    value: {
+                                        color: '#fff',
+                                        fontSize: 14,
+                                        fontWeight: 'normal'
+                                    },
+                                    title: {
+                                        color: '#fff',
+                                        fontSize: 20,
+                                        padding: [0, 0, 8, 0],
+                                        fontWeight: 900
+                                    },
+                                    blue: {
+                                        color: '#36a3ff',
+                                        fontSize: 14,
+                                        padding: [0, 0, 5, 0]
+                                    },
+                                    red: {
+                                        color: '#ff5252',
+                                        fontSize: 14,
+                                        padding: [5, 0, 0, 0]
+                                    }
+                                },
+                                formatter: function (name, indicator) {
+                                    const idx = indicators.findIndex(ind => ind.name === name);
+                                    const player1Value = seriesData[0].value[idx];
+                                    const player2Value = seriesData[1].value[idx];
+
+                                    let p1Val = player1Value;
+                                    let p2Val = player2Value;
+                                    if (['伤害占比', '参团率'].includes(name)) {
+                                        p1Val = player1Value + '%';
+                                        p2Val = player2Value + '%';
+                                    } else if (name === '伤转' && (player1Data['伤转'] || player2Data['伤转'])) {
+                                        p1Val = player1Data['伤转'] ? player1Value + '%' : '-';
+                                        p2Val = player2Data['伤转'] ? player2Value + '%' : '-';
+                                    } else if (name === '每死承伤' && (player1Data['每死承伤'] || player2Data['每死承伤'])) {
+                                        p1Val = player1Data['每死承伤'] ? player1Value : '-';
+                                        p2Val = player2Data['每死承伤'] ? player2Value : '-';
+                                    }
+
+                                    return `{blue|${p1Val}}\n{title|${name}}\n{red|${p2Val}}`;
+                                }
+                            },
+                            splitLine: {
+                                lineStyle: {
+                                    color: 'rgba(255, 255, 255, 0.2)'
+                                }
+                            },
+                            splitArea: {
+                                show: true,
+                                areaStyle: {
+                                    color: ['rgba(255, 255, 255, 0.05)', 'rgba(255, 255, 255, 0.1)']
+                                }
+                            },
+                            axisLine: {
+                                lineStyle: {
+                                    color: 'rgba(255, 255, 255, 0.2)'
+                                }
+                            }
+                        },
+                        tooltip: {
+                            trigger: 'item',
+                            backgroundColor: 'rgba(30, 30, 30, 0.8)',
+                            borderColor: '#666',
+                            textStyle: {
+                                color: '#fff'
+                            },
+                            formatter: function (params) {
+                                if (params.value) {
+                                    const values = params.value;
+                                    const name = params.name;
+                                    let result = `${name}<br/>`;
+
+                                    indicators.forEach((indicator, index) => {
+                                        let value = values[index];
+                                        if (['伤害占比', '参团率'].includes(indicator.name)) {
+                                            value = value + '%';
+                                        }
+                                        result += `${indicator.name}: ${value}<br/>`;
+                                    });
+
+                                    return result;
+                                }
+                                return '';
+                            }
+                        },
+                        series: [
+                            {
+                                type: 'radar',
+                                data: seriesData,
+                                symbol: 'none',
+                                lineStyle: {
+                                    width: 2
+                                },
+                                emphasis: {
+                                    lineStyle: {
+                                        width: 4
+                                    }
+                                }
+                            }
+                        ]
+                    };
+
+                    // 设置数据标签
+                    option.series[0].data[0].label = {
+                        show: true,
+                        fontSize: 24,
+                        fontWeight: 'bold',
+                        position: function (params) {
+                            const positions = ['top', 'right', 'bottom', 'left', 'top', 'right', 'bottom', 'left'];
+                            return positions[params.dimensionIndex] || 'top';
+                        },
+                        distance: 25,
+                        formatter: function (params) {
+                            const value = params.value[params.dimensionIndex];
+                            const indicator = indicators[params.dimensionIndex];
+                            if (['伤害占比', '参团率'].includes(indicator.name)) {
+                                return `${value}%`;
+                            } else if (indicator.name === '伤转' && (player1Data['伤转'] || player2Data['伤转'])) {
+                                return player1Data['伤转'] ? `${value}%` : '-';
+                            } else if (indicator.name === '每死承伤' && (player1Data['每死承伤'] || player2Data['每死承伤'])) {
+                                return player1Data['每死承伤'] ? `${value}` : '-';
+                            }
+                            return value;
+                        },
+                        color: '#36a3ff'
+                    };
+
+                    option.series[0].data[1].label = {
+                        show: true,
+                        fontSize: 24,
+                        fontWeight: 'bold',
+                        position: function (params) {
+                            const positions = ['bottom', 'left', 'top', 'right', 'bottom', 'left', 'top', 'right'];
+                            return positions[params.dimensionIndex] || 'bottom';
+                        },
+                        distance: 25,
+                        formatter: function (params) {
+                            const value = params.value[params.dimensionIndex];
+                            const indicator = indicators[params.dimensionIndex];
+                            if (['伤害占比', '参团率'].includes(indicator.name)) {
+                                return `${value}%`;
+                            } else if (indicator.name === '伤转' && (player1Data['伤转'] || player2Data['伤转'])) {
+                                return player2Data['伤转'] ? `${value}%` : '-';
+                            } else if (indicator.name === '每死承伤' && (player1Data['每死承伤'] || player2Data['每死承伤'])) {
+                                return player2Data['每死承伤'] ? `${value}` : '-';
+                            }
+                            return value;
+                        },
+                        color: '#ff5252'
+                    };
+
+                    // 应用配置
+                    myChart.setOption(option);
+
+                    // 响应窗口大小变化
+                    window.addEventListener('resize', function () {
+                        myChart.resize();
+                    });
+                });
+            }
+
+            // 更新玩家信息展示
+            function updatePlayerInfo(player1, player2, player1Data, player2Data, container) {
+                // 创建左侧玩家信息
+                const player1Info = document.createElement('div');
+                player1Info.className = 'player-info left-player';
+                player1Info.innerHTML = `
+                    <div class="player-name">${player1}</div>
+                    <div class="player-stats">
+                        <div>KDA: ${player1Data['KDA']}</div>
+                        <div>击杀/死亡/助攻: ${player1Data['参与击杀']}/${player1Data['死亡']}/${player1Data['助攻']}</div>
+                        <div>伤害: ${player1Data['伤害']}</div>
+                        <div>伤害占比: ${player1Data['伤害占比']}</div>
+                        <div>参团率: ${player1Data['参团率']}</div>
+                        ${player1Data['伤转'] ? `<div>伤转: ${player1Data['伤转']}</div>` : ''}
+                        ${player1Data['每死承伤'] ? `<div>每死承伤: ${player1Data['每死承伤']}</div>` : ''}
+                    </div>
+                `;
+
+                // 创建VS图标
+                const vsIcon = document.createElement('div');
+                vsIcon.className = 'vs-icon';
+                vsIcon.textContent = 'VS';
+
+                // 创建右侧玩家信息
+                const player2Info = document.createElement('div');
+                player2Info.className = 'player-info right-player';
+                player2Info.innerHTML = `
+                    <div class="player-name">${player2}</div>
+                    <div class="player-stats">
+                        <div>KDA: ${player2Data['KDA']}</div>
+                        <div>击杀/死亡/助攻: ${player2Data['参与击杀']}/${player2Data['死亡']}/${player2Data['助攻']}</div>
+                        <div>伤害: ${player2Data['伤害']}</div>
+                        <div>伤害占比: ${player2Data['伤害占比']}</div>
+                        <div>参团率: ${player2Data['参团率']}</div>
+                        ${player2Data['伤转'] ? `<div>伤转: ${player2Data['伤转']}</div>` : ''}
+                        ${player2Data['每死承伤'] ? `<div>每死承伤: ${player2Data['每死承伤']}</div>` : ''}
+                    </div>
+                `;
+
+                // 添加到容器
+                container.appendChild(player1Info);
+                container.appendChild(vsIcon);
+                container.appendChild(player2Info);
+            }
+        }
+    </script>
+</body>
+
+</html>
