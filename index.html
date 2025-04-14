@@ -551,7 +551,7 @@
                     <div class="player-name">${player1}</div>
                     <div class="player-stats">
                         <div>KDA: ${player1Data['KDA']}</div>
-                        <div>击杀/死亡/助攻: ${player1Data['参与击杀']}/${player1Data['死亡']}/${player1Data['助攻']}</div>
+                        <div>击杀/死亡/助攻: ${parseInt(player1Data['参与击杀']) - parseInt(player1Data['助攻'])}/${player1Data['死亡']}/${player1Data['助攻']}</div>
                         <div>伤害: ${player1Data['伤害']}</div>
                         <div>伤害占比: ${player1Data['伤害占比']}</div>
                         <div>参团率: ${player1Data['参团率']}</div>
@@ -572,7 +572,7 @@
                     <div class="player-name">${player2}</div>
                     <div class="player-stats">
                         <div>KDA: ${player2Data['KDA']}</div>
-                        <div>击杀/死亡/助攻: ${player2Data['参与击杀']}/${player2Data['死亡']}/${player2Data['助攻']}</div>
+                        <div>击杀/死亡/助攻: ${parseInt(player2Data['参与击杀']) - parseInt(player2Data['助攻'])}/${player2Data['死亡']}/${player2Data['助攻']}</div>
                         <div>伤害: ${player2Data['伤害']}</div>
                         <div>伤害占比: ${player2Data['伤害占比']}</div>
                         <div>参团率: ${player2Data['参团率']}</div>
