@@ -1,0 +1,278 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    overflow: hidden;
+    background: linear-gradient(135deg, #ffeef5 0%, #ffe4e1 50%, #ffeef5 100%);
+    height: 100vh;
+    width: 100vw;
+    position: relative;
+}
+
+/* 文字容器 */
+.text-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 1000;
+}
+
+.floating-text {
+    position: absolute;
+    padding: 6px 12px;
+    border-radius: 15px;
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+    pointer-events: none;
+    /* 默认不允许点击，在JS中动态设置 */
+    opacity: 0;
+    /* 使用translate3d启用GPU加速 */
+    transform: translate3d(-50%, -50%, 0) scale(0.8);
+    transition: opacity 0.5s ease, transform 0.5s ease;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15),
+        0 1px 5px rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    /* 优化：让弹窗大小更统一 */
+    min-width: fit-content;
+    max-width: fit-content;
+}
+
+.floating-text.visible {
+    opacity: 1;
+    /* 不改变transform，保持当前位置 */
+}
+
+.floating-text.forming {
+    /* 只使用transform过渡（GPU加速，性能最佳） */
+    transition: transform 3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.5s ease;
+    /* 使用contain优化重绘 */
+    contain: layout style paint;
+    /* 启用硬件加速 */
+    transform: translateZ(0);
+}
+
+.floating-text.gathering {
+    transition: transform 1.5s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.3s ease;
+    will-change: transform;
+}
+
+.floating-text.bursting {
+    /* 性能优化：GPU加速 */
+    will-change: transform, opacity;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    /* 使用contain优化重绘 */
+    contain: layout style paint;
+}
+
+/* 爱心交互区域 */
+.heart-interactive-area {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 500;
+    opacity: 0;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.heart-interactive-area.active {
+    pointer-events: auto;
+    opacity: 0;
+    /* 移除虚线边框和背景，但保留交互功能 */
+    background: transparent;
+    border: none;
+}
+
+.heart-interactive-area.active:hover {
+    opacity: 0;
+    background: transparent;
+}
+
+/* 蓄力指示器 */
+.power-indicator {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 120px;
+    height: 120px;
+    pointer-events: none;
+    z-index: 10002;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.power-indicator.show {
+    opacity: 1;
+}
+
+.power-ring {
+    width: 100%;
+    height: 100%;
+    border: 4px solid rgba(255, 182, 193, 0.3);
+    border-top-color: rgba(255, 105, 180, 0.8);
+    border-radius: 50%;
+    transform: rotate(-90deg);
+    transition: transform 0.1s linear;
+}
+
+.power-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 14px;
+    font-weight: bold;
+    color: rgba(255, 105, 180, 0.9);
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    white-space: nowrap;
+}
+
+.power-text.warning {
+    color: rgba(255, 140, 0, 0.9);
+    animation: pulse 0.5s ease infinite;
+}
+
+@keyframes pulse {
+
+    0%,
+    100% {
+        transform: translate(-50%, -50%) scale(1);
+    }
+
+    50% {
+        transform: translate(-50%, -50%) scale(1.1);
+    }
+}
+
+/* 提示信息 */
+.hint-message {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    padding: 15px 30px;
+    background: rgba(255, 255, 255, 0.95);
+    border: 2px solid rgba(255, 182, 193, 0.5);
+    border-radius: 25px;
+    font-size: 16px;
+    font-weight: bold;
+    color: #d4608f;
+    pointer-events: none;
+    z-index: 10003;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    backdrop-filter: blur(10px);
+}
+
+.hint-message.show {
+    opacity: 1;
+}
+
+/* 控制按钮 */
+.control-panel {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    z-index: 10001;
+    display: flex;
+    gap: 15px;
+    pointer-events: auto;
+}
+
+.control-btn {
+    background: rgba(255, 255, 255, 0.95);
+    border: 2px solid rgba(255, 182, 193, 0.5);
+    padding: 12px 24px;
+    border-radius: 25px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: bold;
+    color: #d4608f;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+    transition: all 0.3s ease;
+    backdrop-filter: blur(10px);
+}
+
+.control-btn:hover {
+    background: rgba(255, 255, 255, 1);
+    border-color: rgba(255, 105, 180, 0.7);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+}
+
+.control-btn:active {
+    transform: translateY(0);
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .floating-text {
+        font-size: 11px;
+        padding: 5px 10px;
+        border-radius: 12px;
+    }
+
+    .power-indicator {
+        width: 100px;
+        height: 100px;
+    }
+
+    .power-text {
+        font-size: 12px;
+    }
+
+    .hint-message {
+        font-size: 14px;
+        padding: 12px 24px;
+    }
+}
+
+@media (max-width: 480px) {
+    .floating-text {
+        font-size: 10px;
+        padding: 4px 8px;
+        border-radius: 10px;
+    }
+
+    .control-panel {
+        flex-direction: column;
+        bottom: 15px;
+        left: 15px;
+    }
+
+    .control-btn {
+        padding: 10px 20px;
+        font-size: 12px;
+    }
+
+    .power-indicator {
+        width: 80px;
+        height: 80px;
+    }
+
+    .power-text {
+        font-size: 11px;
+    }
+
+    .hint-message {
+        font-size: 12px;
+        padding: 10px 20px;
+    }
+}
